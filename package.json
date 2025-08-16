@@ -1,6 +1,6 @@
 {
   "name": "@proserve/aws-ec2",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Enterprise-ready AWS EC2 instance component with security best practices",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
