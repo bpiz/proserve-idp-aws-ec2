@@ -1,0 +1,3 @@
+name: aws-ec2-basic-example
+runtime: nodejs
+description: Basic example of the AWS EC2 component

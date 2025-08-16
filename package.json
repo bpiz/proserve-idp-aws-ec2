@@ -1,0 +1,44 @@
+{
+  "name": "@proserve/aws-ec2",
+  "version": "0.1.0",
+  "description": "Enterprise-ready AWS EC2 instance component with security best practices",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "jest",
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "prepublishOnly": "npm run build && npm test"
+  },
+  "keywords": [
+    "pulumi",
+    "aws",
+    "ec2",
+    "virtual-machine",
+    "security",
+    "enterprise"
+  ],
+  "author": "ProServe Platform Team",
+  "license": "MIT",
+  "dependencies": {
+    "@pulumi/pulumi": "^3.0.0",
+    "@pulumi/aws": "^6.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.0.0",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-plugin-prettier": "^5.0.0",
+    "jest": "^29.0.0",
+    "prettier": "^3.0.0",
+    "typescript": "^5.0.0"
+  },
+  "pulumi": {
+    "resource": true,
+    "name": "aws-ec2",
+    "description": "Enterprise-ready AWS EC2 instance component"
+  }
+} 
