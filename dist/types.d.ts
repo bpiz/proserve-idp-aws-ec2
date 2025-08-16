@@ -73,8 +73,9 @@ export interface Ec2InstanceArgs {
     /**
      * The tenancy of the instance
      * Default: "default"
+     * Valid values: "default", "dedicated", "host"
      */
-    tenancy?: "default" | "dedicated" | "host";
+    tenancy?: string;
     /**
      * Whether to associate a public IP address
      * Default: false
@@ -101,8 +102,9 @@ export interface RootBlockDeviceArgs {
     /**
      * The type of the root volume
      * Default: "gp3"
+     * Valid values: "standard", "gp2", "gp3", "io1", "io2"
      */
-    volumeType?: "standard" | "gp2" | "gp3" | "io1" | "io2";
+    volumeType?: string;
     /**
      * Whether to delete the volume on instance termination
      * Default: true
@@ -141,8 +143,9 @@ export interface EbsVolumeArgs {
     /**
      * The type of the volume
      * Default: "gp3"
+     * Valid values: "standard", "gp2", "gp3", "io1", "io2"
      */
-    type?: "standard" | "gp2" | "gp3" | "io1" | "io2";
+    type?: string;
     /**
      * The availability zone for the volume
      */

@@ -34,8 +34,8 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Ec2Instance = void 0;
-const pulumi = __importStar(require("@pulumi/pulumi"));
 const aws = __importStar(require("@pulumi/aws"));
+const pulumi = __importStar(require("@pulumi/pulumi"));
 /**
  * Enterprise-ready AWS EC2 instance component with security best practices
  *
@@ -91,7 +91,9 @@ class Ec2Instance extends pulumi.ComponentResource {
         if (args.placementGroup) {
             instanceArgs.placementGroup = args.placementGroup;
         }
-        const instance = new aws.ec2.Instance(`${name}-instance`, instanceArgs, { parent: this });
+        const instance = new aws.ec2.Instance(`${name}-instance`, instanceArgs, {
+            parent: this,
+        });
         // Create additional EBS volumes if specified
         const ebsVolumes = [];
         if (args.ebsVolumes) {
@@ -139,7 +141,7 @@ class Ec2Instance extends pulumi.ComponentResource {
         this.availabilityZone = instance.availabilityZone;
         this.arn = instance.arn;
         this.state = instance.instanceState;
-        this.ebsVolumeIds = pulumi.all(ebsVolumes.map(v => v.id));
+        this.ebsVolumeIds = pulumi.all(ebsVolumes.map((v) => v.id));
         this.registerOutputs({
             instanceId: this.instanceId,
             publicIp: this.publicIp,
@@ -351,7 +353,8 @@ class Ec2Instance extends pulumi.ComponentResource {
         if (volume.iops && (volume.iops < 100 || volume.iops > 64000)) {
             throw new Error(`EBS volume IOPS must be between 100 and 64000 at index ${index}`);
         }
-        if (volume.throughput && (volume.throughput < 125 || volume.throughput > 1000)) {
+        if (volume.throughput &&
+            (volume.throughput < 125 || volume.throughput > 1000)) {
             throw new Error(`EBS volume throughput must be between 125 and 1000 MiB/s at index ${index}`);
         }
     }
