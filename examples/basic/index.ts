@@ -1,4 +1,4 @@
-import { Ec2Instance } from "../../src";
+import { Ec2Instance } from "../../dist/index";
 
 // Create a basic EC2 instance
 const ec2 = new Ec2Instance("example-ec2", {
