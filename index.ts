@@ -1,3 +1,12 @@
+export {
+  ACCESS_TYPES,
+  BACKUP_STRATEGIES,
+  ENVIRONMENTS,
+  MONITORING_LEVELS,
+  OPERATING_SYSTEMS,
+  VOLUME_TYPES,
+  WORKLOAD_TYPES,
+} from "./constants";
 export { EnterpriseEc2Instance } from "./ec2";
 export type {
   AccessType,

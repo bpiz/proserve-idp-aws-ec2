@@ -2,66 +2,41 @@ import * as pulumi from "@pulumi/pulumi";
 
 /**
  * Enterprise EC2 Instance Operating System Options
+ * Valid values: "amazon-linux-2023", "amazon-linux-2", "ubuntu-22-04", "ubuntu-20-04",
+ * "rhel-9", "rhel-8", "centos-7", "windows-server-2022", "windows-server-2019"
  */
-export type OperatingSystem =
-  | "amazon-linux-2023"
-  | "amazon-linux-2"
-  | "ubuntu-22-04"
-  | "ubuntu-20-04"
-  | "rhel-9"
-  | "rhel-8"
-  | "centos-7"
-  | "windows-server-2022"
-  | "windows-server-2019";
+export type OperatingSystem = string;
 
 /**
  * Simplified Workload Types (combines size, family, and purpose)
+ * Valid values: "development", "web-server", "application", "database", "high-performance",
+ * "testing", "production"
  */
-export type WorkloadType =
-  | "development" // t3.micro, basic monitoring, no backup
-  | "web-server" // t3.medium, enhanced monitoring, daily backup
-  | "application" // t3.large, detailed monitoring, weekly backup
-  | "database" // r6i.large, enhanced monitoring, daily backup
-  | "high-performance" // c6i.xlarge, enterprise monitoring, critical backup
-  | "testing" // t3.micro, basic monitoring, no backup
-  | "production"; // m6i.large, enterprise monitoring, daily backup;
+export type WorkloadType = string;
 
 /**
  * Enterprise EC2 Instance Environment
+ * Valid values: "development", "staging", "production", "disaster-recovery", "testing"
  */
-export type Environment =
-  | "development"
-  | "staging"
-  | "production"
-  | "disaster-recovery"
-  | "testing";
+export type Environment = string;
 
 /**
  * Enterprise EC2 Instance Access Type
+ * Valid values: "private-only", "bastion-access", "public-access", "load-balancer"
  */
-export type AccessType =
-  | "private-only" // No public IP, internal access only
-  | "bastion-access" // Private with bastion host access
-  | "public-access" // Public IP for external access
-  | "load-balancer"; // Behind load balancer
+export type AccessType = string;
 
 /**
  * Enterprise EC2 Instance Backup Strategy
+ * Valid values: "none", "daily", "weekly", "critical"
  */
-export type BackupStrategy =
-  | "none" // No backup
-  | "daily" // Daily backup
-  | "weekly" // Weekly backup
-  | "critical"; // Critical data backup
+export type BackupStrategy = string;
 
 /**
  * Enterprise EC2 Instance Monitoring Level
+ * Valid values: "basic", "detailed", "enhanced", "enterprise"
  */
-export type MonitoringLevel =
-  | "basic" // Basic CloudWatch monitoring
-  | "detailed" // Detailed monitoring (1-minute intervals)
-  | "enhanced" // Enhanced monitoring with custom metrics
-  | "enterprise"; // Enterprise monitoring with logging
+export type MonitoringLevel = string;
 
 /**
  * Simplified Enterprise EC2 Instance Arguments
@@ -193,8 +168,9 @@ export interface AdditionalVolumeArgs {
   /**
    * Volume type
    * Default: "gp3"
+   * Valid values: "standard", "gp2", "gp3", "io1", "io2"
    */
-  type?: "standard" | "gp2" | "gp3" | "io1" | "io2";
+  type?: string;
 
   /**
    * Whether to encrypt the volume
@@ -235,7 +211,7 @@ export interface EnterpriseEc2Result {
   /**
    * Public IP address (if applicable)
    */
-  publicIp: pulumi.Output<string | undefined>;
+  publicIp: pulumi.Output<string>;
 
   /**
    * Private IP address
@@ -245,7 +221,7 @@ export interface EnterpriseEc2Result {
   /**
    * Public DNS name (if applicable)
    */
-  publicDns: pulumi.Output<string | undefined>;
+  publicDns: pulumi.Output<string>;
 
   /**
    * Private DNS name

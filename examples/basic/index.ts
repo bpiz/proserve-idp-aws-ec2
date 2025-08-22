@@ -1,5 +1,12 @@
 import * as pulumi from "@pulumi/pulumi";
-import { EnterpriseEc2Instance } from "../../index";
+import {
+  ACCESS_TYPES,
+  EnterpriseEc2Instance,
+  ENVIRONMENTS,
+  OPERATING_SYSTEMS,
+  VOLUME_TYPES,
+  WORKLOAD_TYPES,
+} from "../../index";
 
 // Get configuration values
 const config = new pulumi.Config();
@@ -12,8 +19,8 @@ const keyPairName = config.require("keyPairName");
 // ============================================================================
 const simpleInstance = new EnterpriseEc2Instance("simple-instance", {
   name: "simple-instance",
-  operatingSystem: "amazon-linux-2023",
-  workload: "web-server",
+  operatingSystem: OPERATING_SYSTEMS.AMAZON_LINUX_2023,
+  workload: WORKLOAD_TYPES.WEB_SERVER,
   project: "simple-project",
   subnetId: subnetId,
   securityGroupIds: securityGroupIds,
@@ -25,15 +32,15 @@ const simpleInstance = new EnterpriseEc2Instance("simple-instance", {
 // ============================================================================
 const teamInstance = new EnterpriseEc2Instance("team-instance", {
   name: "team-instance",
-  operatingSystem: "amazon-linux-2023",
-  workload: "web-server",
+  operatingSystem: OPERATING_SYSTEMS.AMAZON_LINUX_2023,
+  workload: WORKLOAD_TYPES.WEB_SERVER,
   project: "team-project",
   subnetId: subnetId,
   securityGroupIds: securityGroupIds,
   keyPairName: keyPairName, // Using traditional SSH key pair
   // Add team context
   team: "web-team",
-  environment: "production",
+  environment: ENVIRONMENTS.PRODUCTION,
   application: "company-website",
   costCenter: "WEB-001",
 });
@@ -43,8 +50,8 @@ const teamInstance = new EnterpriseEc2Instance("team-instance", {
 // ============================================================================
 const webServer = new EnterpriseEc2Instance("web-server", {
   name: "web-server",
-  operatingSystem: "amazon-linux-2023",
-  workload: "web-server",
+  operatingSystem: OPERATING_SYSTEMS.AMAZON_LINUX_2023,
+  workload: WORKLOAD_TYPES.WEB_SERVER,
   project: "web-project",
   subnetId: subnetId,
   securityGroupIds: securityGroupIds,
@@ -56,8 +63,8 @@ const webServer = new EnterpriseEc2Instance("web-server", {
 
 const devInstance = new EnterpriseEc2Instance("dev-instance", {
   name: "dev-instance",
-  operatingSystem: "ubuntu-22-04",
-  workload: "development",
+  operatingSystem: OPERATING_SYSTEMS.UBUNTU_22_04,
+  workload: WORKLOAD_TYPES.DEVELOPMENT,
   project: "dev-project",
   subnetId: subnetId,
   securityGroupIds: securityGroupIds,
@@ -69,8 +76,8 @@ const devInstance = new EnterpriseEc2Instance("dev-instance", {
 
 const databaseInstance = new EnterpriseEc2Instance("database-instance", {
   name: "database-instance",
-  operatingSystem: "rhel-9",
-  workload: "database",
+  operatingSystem: OPERATING_SYSTEMS.RHEL_9,
+  workload: WORKLOAD_TYPES.DATABASE,
   project: "database-project",
   subnetId: subnetId,
   securityGroupIds: securityGroupIds,
@@ -78,12 +85,12 @@ const databaseInstance = new EnterpriseEc2Instance("database-instance", {
   team: "data-team",
   application: "customer-database",
   costCenter: "DATA-001",
-  accessType: "private-only", // Only accessible via corporate network
+  accessType: ACCESS_TYPES.PRIVATE_ONLY, // Only accessible via corporate network
   additionalVolumes: [
     {
       name: "database",
       size: 500,
-      type: "gp3",
+      type: VOLUME_TYPES.GP3,
       encrypted: true,
       mountPoint: "/var/lib/mysql",
     },
@@ -95,8 +102,8 @@ const databaseInstance = new EnterpriseEc2Instance("database-instance", {
 // ============================================================================
 const advancedInstance = new EnterpriseEc2Instance("advanced-instance", {
   name: "advanced-instance",
-  operatingSystem: "amazon-linux-2023",
-  workload: "high-performance",
+  operatingSystem: OPERATING_SYSTEMS.AMAZON_LINUX_2023,
+  workload: WORKLOAD_TYPES.HIGH_PERFORMANCE,
   project: "advanced-project",
   subnetId: subnetId,
   securityGroupIds: securityGroupIds,
@@ -104,20 +111,20 @@ const advancedInstance = new EnterpriseEc2Instance("advanced-instance", {
   team: "performance-team",
   application: "ml-pipeline",
   costCenter: "ML-001",
-  accessType: "load-balancer",
+  accessType: ACCESS_TYPES.LOAD_BALANCER,
   rootVolumeSize: 100,
   additionalVolumes: [
     {
       name: "data",
       size: 1000,
-      type: "gp3",
+      type: VOLUME_TYPES.GP3,
       encrypted: true,
       mountPoint: "/data",
     },
     {
       name: "logs",
       size: 200,
-      type: "gp3",
+      type: VOLUME_TYPES.GP3,
       encrypted: true,
       mountPoint: "/logs",
     },

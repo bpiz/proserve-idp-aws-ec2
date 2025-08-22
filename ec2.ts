@@ -61,9 +61,9 @@ type EnterpriseEc2Config = Required<
  */
 export class EnterpriseEc2Instance extends pulumi.ComponentResource {
   public readonly instanceId: pulumi.Output<string>;
-  public readonly publicIp: pulumi.Output<string | undefined>;
+  public readonly publicIp: pulumi.Output<string>;
   public readonly privateIp: pulumi.Output<string>;
-  public readonly publicDns: pulumi.Output<string | undefined>;
+  public readonly publicDns: pulumi.Output<string>;
   public readonly privateDns: pulumi.Output<string>;
   public readonly availabilityZone: pulumi.Output<string>;
   public readonly arn: pulumi.Output<string>;

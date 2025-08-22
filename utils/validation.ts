@@ -1,3 +1,97 @@
+import {
+  ACCESS_TYPES,
+  BACKUP_STRATEGIES,
+  ENVIRONMENTS,
+  MONITORING_LEVELS,
+  OPERATING_SYSTEMS,
+  VOLUME_TYPES,
+  WORKLOAD_TYPES,
+} from "../constants";
+
+/**
+ * Validates operating system value
+ */
+export function validateOperatingSystem(os: string): void {
+  const validValues = Object.values(OPERATING_SYSTEMS);
+  if (!validValues.includes(os)) {
+    throw new Error(
+      `Invalid operatingSystem: "${os}". Valid values: ${validValues.join(", ")}`
+    );
+  }
+}
+
+/**
+ * Validates workload type value
+ */
+export function validateWorkloadType(workload: string): void {
+  const validValues = Object.values(WORKLOAD_TYPES);
+  if (!validValues.includes(workload)) {
+    throw new Error(
+      `Invalid workload: "${workload}". Valid values: ${validValues.join(", ")}`
+    );
+  }
+}
+
+/**
+ * Validates environment value
+ */
+export function validateEnvironment(env: string): void {
+  const validValues = Object.values(ENVIRONMENTS);
+  if (!validValues.includes(env)) {
+    throw new Error(
+      `Invalid environment: "${env}". Valid values: ${validValues.join(", ")}`
+    );
+  }
+}
+
+/**
+ * Validates access type value
+ */
+export function validateAccessType(accessType: string): void {
+  const validValues = Object.values(ACCESS_TYPES);
+  if (!validValues.includes(accessType)) {
+    throw new Error(
+      `Invalid accessType: "${accessType}". Valid values: ${validValues.join(", ")}`
+    );
+  }
+}
+
+/**
+ * Validates backup strategy value
+ */
+export function validateBackupStrategy(strategy: string): void {
+  const validValues = Object.values(BACKUP_STRATEGIES);
+  if (!validValues.includes(strategy)) {
+    throw new Error(
+      `Invalid backupStrategy: "${strategy}". Valid values: ${validValues.join(", ")}`
+    );
+  }
+}
+
+/**
+ * Validates monitoring level value
+ */
+export function validateMonitoringLevel(level: string): void {
+  const validValues = Object.values(MONITORING_LEVELS);
+  if (!validValues.includes(level)) {
+    throw new Error(
+      `Invalid monitoringLevel: "${level}". Valid values: ${validValues.join(", ")}`
+    );
+  }
+}
+
+/**
+ * Validates volume type value
+ */
+export function validateVolumeType(type: string): void {
+  const validValues = Object.values(VOLUME_TYPES);
+  if (!validValues.includes(type)) {
+    throw new Error(
+      `Invalid volume type: "${type}". Valid values: ${validValues.join(", ")}`
+    );
+  }
+}
+
 /**
  * Validates subnet ID format
  */
@@ -36,11 +130,8 @@ export function validateAdditionalVolume(volume: any, index: number): void {
     );
   }
 
-  const validTypes = ["standard", "gp2", "gp3", "io1", "io2"];
-  if (volume.type && !validTypes.includes(volume.type)) {
-    throw new Error(
-      `Invalid additional volume type at index ${index}: ${volume.type}. Valid types: ${validTypes.join(", ")}`
-    );
+  if (volume.type) {
+    validateVolumeType(volume.type);
   }
 
   if (volume.iops && (volume.iops < 100 || volume.iops > 64000)) {
@@ -70,10 +161,12 @@ export function validateArgs(config: any): void {
   if (!config.operatingSystem) {
     throw new Error("operatingSystem is required");
   }
+  validateOperatingSystem(config.operatingSystem);
 
   if (!config.workload) {
     throw new Error("workload is required");
   }
+  validateWorkloadType(config.workload);
 
   if (!config.subnetId) {
     throw new Error("subnetId is required");
@@ -94,6 +187,23 @@ export function validateArgs(config: any): void {
   config.securityGroupIds.forEach((sgId: string, index: number) => {
     validateSecurityGroupId(sgId, index);
   });
+
+  // Validate optional fields if provided
+  if (config.environment) {
+    validateEnvironment(config.environment);
+  }
+
+  if (config.accessType) {
+    validateAccessType(config.accessType);
+  }
+
+  if (config.backupStrategy) {
+    validateBackupStrategy(config.backupStrategy);
+  }
+
+  if (config.monitoringLevel) {
+    validateMonitoringLevel(config.monitoringLevel);
+  }
 
   // Validate key pair for Linux instances (optional - teams can use SSM, VPN, etc.)
   if (config.operatingSystem.includes("linux") && !config.keyPairName) {

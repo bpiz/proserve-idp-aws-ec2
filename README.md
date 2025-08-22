@@ -7,16 +7,20 @@ A simplified, enterprise-ready AWS EC2 instance component that provides company-
 ### **Level 1: "Just Deploy" - Minimal Configuration**
 
 ```typescript
-import { EnterpriseEc2Instance } from "@proserve/aws-ec2";
+import {
+  EnterpriseEc2Instance,
+  OPERATING_SYSTEMS,
+  WORKLOAD_TYPES,
+} from "@proserve/aws-ec2";
 
 const instance = new EnterpriseEc2Instance("my-server", {
   name: "my-server",
-  operatingSystem: "amazon-linux-2023",
-  workload: "web-server",
+  operatingSystem: OPERATING_SYSTEMS.AMAZON_LINUX_2023,
+  workload: WORKLOAD_TYPES.WEB_SERVER,
   project: "my-project",
   subnetId: "subnet-123",
   securityGroupIds: ["sg-123"],
-  keyPairName: "my-key", // Must exist in AWS already
+  // No keyPairName needed - use SSM for access
 });
 ```
 
@@ -329,56 +333,83 @@ Instead of complex instance sizing, use business-focused workload types:
 ### **Web Server (Production)**
 
 ```typescript
+import {
+  EnterpriseEc2Instance,
+  OPERATING_SYSTEMS,
+  WORKLOAD_TYPES,
+  ENVIRONMENTS,
+} from "@proserve/aws-ec2";
+
 const webServer = new EnterpriseEc2Instance("web-server", {
   name: "company-website",
-  operatingSystem: "amazon-linux-2023",
-  workload: "web-server",
+  operatingSystem: OPERATING_SYSTEMS.AMAZON_LINUX_2023,
+  workload: WORKLOAD_TYPES.WEB_SERVER,
   project: "company-website",
   subnetId: "subnet-123",
   securityGroupIds: ["sg-123"],
-  keyPairName: "web-key",
+  // No keyPairName needed - use SSM for access
   team: "web-team",
   application: "company-website",
   costCenter: "WEB-001",
+  environment: ENVIRONMENTS.PRODUCTION,
 });
 ```
 
 ### **Development Instance**
 
 ```typescript
+import {
+  EnterpriseEc2Instance,
+  OPERATING_SYSTEMS,
+  WORKLOAD_TYPES,
+  ENVIRONMENTS,
+} from "@proserve/aws-ec2";
+
 const devInstance = new EnterpriseEc2Instance("dev-instance", {
   name: "dev-server",
-  operatingSystem: "ubuntu-22-04",
-  workload: "development",
+  operatingSystem: OPERATING_SYSTEMS.UBUNTU_22_04,
+  workload: WORKLOAD_TYPES.DEVELOPMENT,
   project: "mobile-app",
   subnetId: "subnet-123",
   securityGroupIds: ["sg-123"],
-  keyPairName: "dev-key",
+  keyPairName: "dev-key", // Dev team prefers SSH key pairs
   team: "dev-team",
   application: "mobile-backend",
   costCenter: "DEV-001",
+  environment: ENVIRONMENTS.DEVELOPMENT,
 });
 ```
 
 ### **Database Server**
 
 ```typescript
+import {
+  EnterpriseEc2Instance,
+  OPERATING_SYSTEMS,
+  WORKLOAD_TYPES,
+  ACCESS_TYPES,
+  VOLUME_TYPES,
+  ENVIRONMENTS,
+} from "@proserve/aws-ec2";
+
 const dbServer = new EnterpriseEc2Instance("db-server", {
   name: "customer-db",
-  operatingSystem: "rhel-9",
-  workload: "database",
+  operatingSystem: OPERATING_SYSTEMS.RHEL_9,
+  workload: WORKLOAD_TYPES.DATABASE,
   project: "customer-portal",
   subnetId: "subnet-123",
   securityGroupIds: ["sg-123"],
-  keyPairName: "db-key",
+  // No keyPairName needed - access via VPN/Direct Connect
   team: "data-team",
   application: "customer-database",
   costCenter: "DATA-001",
+  environment: ENVIRONMENTS.PRODUCTION,
+  accessType: ACCESS_TYPES.PRIVATE_ONLY, // Only accessible via corporate network
   additionalVolumes: [
     {
       name: "database",
       size: 500,
-      type: "gp3",
+      type: VOLUME_TYPES.GP3,
       encrypted: true,
       mountPoint: "/var/lib/mysql",
     },
@@ -441,7 +472,58 @@ yum install -y docker python3-pip`,
 2. Configure advanced security
 3. Set up monitoring and alerting
 
-## 🏆 **Best Practices**
+## 🔍 **Runtime Validation & Error Messages**
+
+The component provides helpful error messages when invalid values are used:
+
+### **Invalid Operating System**
+
+```typescript
+// ❌ This will throw a helpful error
+const instance = new EnterpriseEc2Instance("my-server", {
+  operatingSystem: "invalid-os", // ❌ Invalid value
+  // ... other config
+});
+
+// Error: Invalid operatingSystem: "invalid-os".
+// Valid values: amazon-linux-2023, amazon-linux-2, ubuntu-22-04, ubuntu-20-04,
+// rhel-9, rhel-8, centos-7, windows-server-2022, windows-server-2019
+```
+
+### **Invalid Workload Type**
+
+```typescript
+// ❌ This will throw a helpful error
+const instance = new EnterpriseEc2Instance("my-server", {
+  workload: "invalid-workload", // ❌ Invalid value
+  // ... other config
+});
+
+// Error: Invalid workload: "invalid-workload".
+// Valid values: development, web-server, application, database,
+// high-performance, testing, production
+```
+
+### **Invalid Volume Type**
+
+```typescript
+// ❌ This will throw a helpful error
+const instance = new EnterpriseEc2Instance("my-server", {
+  additionalVolumes: [
+    {
+      name: "data",
+      size: 100,
+      type: "invalid-type", // ❌ Invalid value
+    },
+  ],
+  // ... other config
+});
+
+// Error: Invalid volume type: "invalid-type".
+// Valid values: standard, gp2, gp3, io1, io2
+```
+
+## 🎯 **Best Practices**
 
 1. **Start Simple**: Use Level 1 configuration to get started
 2. **Add Context**: Include team, project, and cost center information
@@ -511,4 +593,79 @@ export = async () => {
     sshConnection: webServer.sshConnectionString,
   };
 };
+```
+
+## 🔧 **Using Constants for Type Safety**
+
+### **Import Constants Instead of Typing Strings**
+
+```typescript
+import {
+  EnterpriseEc2Instance,
+  OPERATING_SYSTEMS, // For OS selection
+  WORKLOAD_TYPES, // For workload types
+  ENVIRONMENTS, // For environment
+  ACCESS_TYPES, // For access configuration
+  VOLUME_TYPES, // For volume configuration
+} from "@proserve/aws-ec2";
+
+// ✅ Use constants (recommended)
+const instance = new EnterpriseEc2Instance("my-server", {
+  operatingSystem: OPERATING_SYSTEMS.AMAZON_LINUX_2023,
+  workload: WORKLOAD_TYPES.WEB_SERVER,
+  environment: ENVIRONMENTS.PRODUCTION,
+  accessType: ACCESS_TYPES.PRIVATE_ONLY,
+  // ... other config
+});
+
+// ❌ Don't type strings manually (error-prone)
+const instance = new EnterpriseEc2Instance("my-server", {
+  operatingSystem: "amazon-linux-2023", // Could have typos
+  workload: "web-server", // Could have typos
+  // ... other config
+});
+```
+
+### **Available Constants**
+
+```typescript
+// Operating Systems
+OPERATING_SYSTEMS.AMAZON_LINUX_2023;
+OPERATING_SYSTEMS.AMAZON_LINUX_2;
+OPERATING_SYSTEMS.UBUNTU_22_04;
+OPERATING_SYSTEMS.UBUNTU_20_04;
+OPERATING_SYSTEMS.RHEL_9;
+OPERATING_SYSTEMS.RHEL_8;
+OPERATING_SYSTEMS.CENTOS_7;
+OPERATING_SYSTEMS.WINDOWS_SERVER_2022;
+OPERATING_SYSTEMS.WINDOWS_SERVER_2019;
+
+// Workload Types
+WORKLOAD_TYPES.DEVELOPMENT;
+WORKLOAD_TYPES.WEB_SERVER;
+WORKLOAD_TYPES.APPLICATION;
+WORKLOAD_TYPES.DATABASE;
+WORKLOAD_TYPES.HIGH_PERFORMANCE;
+WORKLOAD_TYPES.TESTING;
+WORKLOAD_TYPES.PRODUCTION;
+
+// Environments
+ENVIRONMENTS.DEVELOPMENT;
+ENVIRONMENTS.STAGING;
+ENVIRONMENTS.PRODUCTION;
+ENVIRONMENTS.DISASTER_RECOVERY;
+ENVIRONMENTS.TESTING;
+
+// Access Types
+ACCESS_TYPES.PRIVATE_ONLY;
+ACCESS_TYPES.BASTION_ACCESS;
+ACCESS_TYPES.PUBLIC_ACCESS;
+ACCESS_TYPES.LOAD_BALANCER;
+
+// Volume Types
+VOLUME_TYPES.STANDARD;
+VOLUME_TYPES.GP2;
+VOLUME_TYPES.GP3;
+VOLUME_TYPES.IO1;
+VOLUME_TYPES.IO2;
 ```
