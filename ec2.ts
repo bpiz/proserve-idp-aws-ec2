@@ -1,19 +1,65 @@
 import * as aws from "@pulumi/aws";
 import * as pulumi from "@pulumi/pulumi";
-import { EbsVolumeArgs, Ec2InstanceArgs, RootBlockDeviceArgs } from "./types";
+import { OS_CONFIGS, WORKLOAD_CONFIGS, WORKLOAD_ENVIRONMENTS } from "./data";
+import {
+  AdditionalVolumeArgs,
+  BackupStrategy,
+  EnterpriseEc2Args,
+  Environment,
+  MonitoringLevel,
+  OsConfig,
+  WorkloadConfig,
+} from "./types";
+import {
+  createAdditionalVolumes,
+  createBackupResources,
+  createCloudWatchDashboard,
+  createMonitoringResources,
+  createRootBlockDevice,
+  validateArgs,
+} from "./utils";
 
 /**
- * Enterprise-ready AWS EC2 instance component with security best practices
- *
- * This component creates a secure EC2 instance with:
- * - Proper IAM roles and security groups
- * - Encrypted EBS volumes
- * - Detailed monitoring and logging
- * - Termination protection for production
- * - Comprehensive tagging for cost allocation
- * - CrossGuard compliance ready
+ * Internal configuration type with all defaults applied
  */
-export class Ec2Instance extends pulumi.ComponentResource {
+type EnterpriseEc2Config = Required<
+  Omit<
+    EnterpriseEc2Args,
+    | "keyPairName"
+    | "iamInstanceProfile"
+    | "userData"
+    | "additionalVolumes"
+    | "tags"
+    | "backupStrategy"
+    | "monitoringLevel"
+    | "enableTerminationProtection"
+  >
+> & {
+  keyPairName?: string;
+  iamInstanceProfile?: string;
+  userData?: string;
+  additionalVolumes?: AdditionalVolumeArgs[];
+  tags?: Record<string, string>;
+  backupStrategy?: BackupStrategy;
+  monitoringLevel?: MonitoringLevel;
+  enableTerminationProtection?: boolean;
+};
+
+/**
+ * Enterprise-ready AWS EC2 instance component
+ *
+ * This component provides a simplified, enterprise-focused way to deploy EC2 instances
+ * with company-approved configurations, security best practices, and cost optimization.
+ *
+ * Features:
+ * - Predefined OS configurations with latest AMIs
+ * - Simplified workload types (development, web-server, database, etc.)
+ * - Enterprise security defaults (encryption, monitoring, backup)
+ * - Smart defaults based on workload and environment
+ * - Developer-friendly interface
+ * - Progressive complexity for advanced users
+ */
+export class EnterpriseEc2Instance extends pulumi.ComponentResource {
   public readonly instanceId: pulumi.Output<string>;
   public readonly publicIp: pulumi.Output<string | undefined>;
   public readonly privateIp: pulumi.Output<string>;
@@ -22,119 +68,75 @@ export class Ec2Instance extends pulumi.ComponentResource {
   public readonly availabilityZone: pulumi.Output<string>;
   public readonly arn: pulumi.Output<string>;
   public readonly state: pulumi.Output<string>;
-  public readonly ebsVolumeIds: pulumi.Output<string[]>;
+  public readonly rootVolumeId: pulumi.Output<string>;
+  public readonly additionalVolumeIds: pulumi.Output<string[]>;
+  public readonly sshConnectionString?: pulumi.Output<string>;
+  public readonly rdpConnectionString?: pulumi.Output<string>;
+  public readonly cloudWatchDashboardUrl: pulumi.Output<string>;
 
   constructor(
     name: string,
-    args: Ec2InstanceArgs,
+    args: EnterpriseEc2Args,
     opts?: pulumi.ComponentResourceOptions
   ) {
-    super("proserve:aws:Ec2Instance", name, args, opts);
+    super("proserve:aws:EnterpriseEc2Instance", name, args, opts);
 
-    // Validate inputs
-    this.validateArgs(args);
+    // Set defaults and validate inputs
+    const config = this.setDefaults(args);
+    validateArgs(config);
 
-    // Create base tags
-    const baseTags = {
-      Name: args.name,
-      Environment: args.environment,
-      Project: args.project,
-      ManagedBy: "pulumi",
-      ...args.tags,
-    };
+    // Get OS and workload configurations
+    const osConfig = OS_CONFIGS[config.operatingSystem];
+    const workloadConfig = WORKLOAD_CONFIGS[config.workload];
 
-    // Create root block device configuration
-    const rootBlockDevice = this.createRootBlockDevice(
-      args.rootBlockDevice,
-      baseTags
+    // Create enterprise tags
+    const tags = this.createEnterpriseTags(config);
+
+    // Create root block device
+    const rootBlockDevice = createRootBlockDevice(
+      config,
+      osConfig,
+      workloadConfig,
+      tags
+    );
+
+    // Create instance arguments
+    const instanceArgs = this.createInstanceArgs(
+      config,
+      osConfig,
+      workloadConfig,
+      rootBlockDevice
     );
 
     // Create the EC2 instance
-    const instanceArgs: any = {
-      instanceType: args.instanceType,
-      ami: args.amiId,
-      subnetId: args.subnetId,
-      vpcSecurityGroupIds: args.securityGroupIds,
-      rootBlockDevice: rootBlockDevice,
-      monitoring: args.enableDetailedMonitoring !== false,
-      sourceDestCheck: args.enableSourceDestCheck !== false,
-      disableApiTermination: args.enableTerminationProtection || false,
-      tenancy: args.tenancy || "default",
-      associatePublicIpAddress: args.associatePublicIpAddress || false,
-      tags: baseTags,
-    };
-
-    if (args.keyPairName) {
-      instanceArgs.keyName = args.keyPairName;
-    }
-    if (args.iamInstanceProfile) {
-      instanceArgs.iamInstanceProfile = args.iamInstanceProfile;
-    }
-    if (args.availabilityZone) {
-      instanceArgs.availabilityZone = args.availabilityZone;
-    }
-    if (args.userData) {
-      instanceArgs.userData = args.userData;
-    }
-    if (args.placementGroup) {
-      instanceArgs.placementGroup = args.placementGroup;
-    }
-
     const instance = new aws.ec2.Instance(`${name}-instance`, instanceArgs, {
       parent: this,
     });
 
-    // Create additional EBS volumes if specified
-    const ebsVolumes: aws.ebs.Volume[] = [];
-    if (args.ebsVolumes) {
-      args.ebsVolumes.forEach((volumeArgs, index) => {
-        const volumeArgsForVolume: any = {
-          availabilityZone: volumeArgs.availabilityZone,
-          size: volumeArgs.size,
-          type: volumeArgs.type || "gp3",
-          encrypted: volumeArgs.encrypted !== false,
-          tags: {
-            Name: `${args.name}-${volumeArgs.name}`,
-            Environment: args.environment,
-            Project: args.project,
-            ManagedBy: "pulumi",
-            ...volumeArgs.tags,
-          },
-        };
+    // Create additional EBS volumes
+    const additionalVolumes = createAdditionalVolumes(
+      name,
+      config,
+      instance,
+      tags
+    );
 
-        if (volumeArgs.kmsKeyId) {
-          volumeArgsForVolume.kmsKeyId = volumeArgs.kmsKeyId;
-        }
-        if (volumeArgs.iops) {
-          volumeArgsForVolume.iops = volumeArgs.iops;
-        }
-        if (volumeArgs.throughput) {
-          volumeArgsForVolume.throughput = volumeArgs.throughput;
-        }
+    // Create CloudWatch dashboard
+    const dashboard = createCloudWatchDashboard(name, instance, config);
 
-        const volume = new aws.ebs.Volume(
-          `${name}-volume-${volumeArgs.name}`,
-          volumeArgsForVolume,
-          { parent: this }
-        );
-
-        // Attach the volume to the instance
-        new aws.ec2.VolumeAttachment(
-          `${name}-attachment-${volumeArgs.name}`,
-          {
-            deviceName: `/dev/sd${String.fromCharCode(98 + index)}`, // /dev/sdb, /dev/sdc, etc.
-            volumeId: volume.id,
-            instanceId: instance.id,
-          },
-          { parent: this }
-        );
-
-        ebsVolumes.push(volume);
-      });
-    }
-
-    // Create CloudWatch alarms for monitoring
-    this.createCloudWatchAlarms(name, instance, args);
+    // Create monitoring and backup resources
+    createMonitoringResources(
+      name,
+      instance,
+      config,
+      workloadConfig.monitoringLevel
+    );
+    createBackupResources(
+      name,
+      instance,
+      config,
+      workloadConfig.backupStrategy
+    );
 
     // Set outputs
     this.instanceId = instance.id;
@@ -145,7 +147,29 @@ export class Ec2Instance extends pulumi.ComponentResource {
     this.availabilityZone = instance.availabilityZone;
     this.arn = instance.arn;
     this.state = instance.instanceState;
-    this.ebsVolumeIds = pulumi.all(ebsVolumes.map((v) => v.id));
+    this.rootVolumeId = instance.rootBlockDevice.apply(
+      (device) => device?.volumeId || ""
+    );
+    this.additionalVolumeIds = pulumi.all(additionalVolumes.map((v) => v.id));
+
+    // Create connection strings (key pair is optional)
+    if (osConfig.requiresKeyPair && config.keyPairName) {
+      this.sshConnectionString = pulumi.interpolate`ssh -i ~/.ssh/${config.keyPairName} ${osConfig.sshUser}@${instance.publicIp || instance.privateIp}`;
+    } else if (osConfig.requiresKeyPair) {
+      // No key pair provided - suggest alternative connection methods
+      this.sshConnectionString = pulumi.interpolate`# No SSH key pair configured for ${config.name}
+# Alternative connection methods:
+# 1. AWS Systems Manager (SSM): aws ssm start-session --target ${instance.id}
+# 2. VPN/Direct Connect: Access via corporate network
+# 3. Bastion host: Use jump server for access
+# 4. Load balancer: For web applications`;
+    }
+
+    if (config.operatingSystem.includes("windows")) {
+      this.rdpConnectionString = pulumi.interpolate`mstsc /v:${instance.publicIp || instance.privateIp}`;
+    }
+
+    this.cloudWatchDashboardUrl = dashboard.dashboardArn;
 
     this.registerOutputs({
       instanceId: this.instanceId,
@@ -156,279 +180,90 @@ export class Ec2Instance extends pulumi.ComponentResource {
       availabilityZone: this.availabilityZone,
       arn: this.arn,
       state: this.state,
-      ebsVolumeIds: this.ebsVolumeIds,
+      rootVolumeId: this.rootVolumeId,
+      additionalVolumeIds: this.additionalVolumeIds,
+      sshConnectionString: this.sshConnectionString,
+      rdpConnectionString: this.rdpConnectionString,
+      cloudWatchDashboardUrl: this.cloudWatchDashboardUrl,
     });
   }
 
   /**
-   * Creates root block device configuration
+   * Sets enterprise defaults based on workload and environment
    */
-  private createRootBlockDevice(
-    rootBlockDeviceArgs?: RootBlockDeviceArgs,
-    tags?: Record<string, string>
-  ) {
-    const defaultConfig = {
-      volumeSize: 8,
-      volumeType: "gp3" as const,
-      deleteOnTermination: true,
-      encrypted: true,
+  private setDefaults(args: EnterpriseEc2Args): EnterpriseEc2Config {
+    return {
+      ...args,
+      environment: (args.environment ||
+        WORKLOAD_ENVIRONMENTS[args.workload]) as Environment,
+      accessType: args.accessType || "private-only",
+      rootVolumeSize: args.rootVolumeSize || 20,
+      team: args.team || "infrastructure",
+      application: args.application || "general",
+      costCenter: args.costCenter || "IT-001",
+    };
+  }
+
+  /**
+   * Creates enterprise-standard tags
+   */
+  private createEnterpriseTags(
+    config: EnterpriseEc2Config
+  ): Record<string, string> {
+    return {
+      Name: config.name,
+      Environment: config.environment,
+      Project: config.project,
+      Team: config.team,
+      Application: config.application,
+      CostCenter: config.costCenter,
+      Workload: config.workload,
+      ManagedBy: "pulumi",
+      Compliance: "enterprise",
+      ...config.tags,
+    };
+  }
+
+  /**
+   * Creates instance arguments
+   */
+  private createInstanceArgs(
+    config: EnterpriseEc2Config,
+    osConfig: OsConfig,
+    workloadConfig: WorkloadConfig,
+    rootBlockDevice: aws.types.input.ec2.InstanceRootBlockDevice
+  ): aws.ec2.InstanceArgs {
+    const args: aws.ec2.InstanceArgs = {
+      instanceType: workloadConfig.instanceType,
+      ami: osConfig.amiId,
+      subnetId: config.subnetId,
+      vpcSecurityGroupIds: config.securityGroupIds,
+      rootBlockDevice: rootBlockDevice,
+      monitoring:
+        workloadConfig.monitoringLevel === "detailed" ||
+        workloadConfig.monitoringLevel === "enhanced" ||
+        workloadConfig.monitoringLevel === "enterprise",
+      sourceDestCheck: true,
+      disableApiTermination:
+        config.enableTerminationProtection ??
+        workloadConfig.terminationProtection,
+      tenancy: "default",
+      associatePublicIpAddress: config.accessType === "public-access",
+      tags: this.createEnterpriseTags(config),
     };
 
-    const config = { ...defaultConfig, ...rootBlockDeviceArgs };
-
-    const result: any = {
-      volumeSize: config.volumeSize,
-      volumeType: config.volumeType,
-      deleteOnTermination: config.deleteOnTermination,
-      encrypted: config.encrypted,
-    };
-
-    if (config.kmsKeyId) {
-      result.kmsKeyId = config.kmsKeyId;
-    }
-    if (config.iops) {
-      result.iops = config.iops;
-    }
-    if (config.throughput) {
-      result.throughput = config.throughput;
-    }
-    if (tags) {
-      result.tags = tags;
+    if (config.keyPairName && osConfig.requiresKeyPair) {
+      args.keyName = config.keyPairName;
     }
 
-    return result;
-  }
-
-  /**
-   * Creates CloudWatch alarms for monitoring
-   */
-  private createCloudWatchAlarms(
-    name: string,
-    instance: aws.ec2.Instance,
-    args: Ec2InstanceArgs
-  ) {
-    // CPU utilization alarm
-    new aws.cloudwatch.MetricAlarm(
-      `${name}-cpu-alarm`,
-      {
-        name: `${name}-cpu-utilization`,
-        comparisonOperator: "GreaterThanThreshold",
-        evaluationPeriods: 2,
-        metricName: "CPUUtilization",
-        namespace: "AWS/EC2",
-        period: 300, // 5 minutes
-        statistic: "Average",
-        threshold: 80,
-        alarmDescription: "CPU utilization is too high",
-        dimensions: {
-          InstanceId: instance.id,
-        },
-        tags: {
-          Name: `${name}-cpu-alarm`,
-          Environment: args.environment,
-          Project: args.project,
-          ManagedBy: "pulumi",
-        },
-      },
-      { parent: this }
-    );
-
-    // Memory utilization alarm (if detailed monitoring is enabled)
-    if (args.enableDetailedMonitoring !== false) {
-      new aws.cloudwatch.MetricAlarm(
-        `${name}-memory-alarm`,
-        {
-          name: `${name}-memory-utilization`,
-          comparisonOperator: "GreaterThanThreshold",
-          evaluationPeriods: 2,
-          metricName: "MemoryUtilization",
-          namespace: "System/Linux",
-          period: 300,
-          statistic: "Average",
-          threshold: 85,
-          alarmDescription: "Memory utilization is too high",
-          dimensions: {
-            InstanceId: instance.id,
-          },
-          tags: {
-            Name: `${name}-memory-alarm`,
-            Environment: args.environment,
-            Project: args.project,
-            ManagedBy: "pulumi",
-          },
-        },
-        { parent: this }
-      );
+    if (config.iamInstanceProfile) {
+      args.iamInstanceProfile = config.iamInstanceProfile;
     }
 
-    // Status check alarm
-    new aws.cloudwatch.MetricAlarm(
-      `${name}-status-alarm`,
-      {
-        name: `${name}-status-check`,
-        comparisonOperator: "GreaterThanThreshold",
-        evaluationPeriods: 2,
-        metricName: "StatusCheckFailed",
-        namespace: "AWS/EC2",
-        period: 60,
-        statistic: "Maximum",
-        threshold: 0,
-        alarmDescription: "Instance status check failed",
-        dimensions: {
-          InstanceId: instance.id,
-        },
-        tags: {
-          Name: `${name}-status-alarm`,
-          Environment: args.environment,
-          Project: args.project,
-          ManagedBy: "pulumi",
-        },
-      },
-      { parent: this }
-    );
-  }
-
-  /**
-   * Validates the input arguments
-   */
-  private validateArgs(args: Ec2InstanceArgs): void {
-    if (!args.name) {
-      throw new Error("name is required");
+    if (config.userData) {
+      args.userData = config.userData;
     }
 
-    if (!args.instanceType) {
-      throw new Error("instanceType is required");
-    }
-
-    if (!args.amiId) {
-      throw new Error("amiId is required");
-    }
-
-    if (!args.subnetId) {
-      throw new Error("subnetId is required");
-    }
-
-    if (!args.securityGroupIds || args.securityGroupIds.length === 0) {
-      throw new Error("securityGroupIds must be provided and non-empty");
-    }
-
-    if (!args.environment) {
-      throw new Error("environment is required");
-    }
-
-    if (!args.project) {
-      throw new Error("project is required");
-    }
-
-    // Validate instance type format
-    this.validateInstanceType(args.instanceType);
-
-    // Validate AMI ID format
-    this.validateAmiId(args.amiId);
-
-    // Validate subnet ID format
-    this.validateSubnetId(args.subnetId);
-
-    // Validate security group IDs
-    args.securityGroupIds.forEach((sgId, index) => {
-      this.validateSecurityGroupId(sgId, index);
-    });
-
-    // Validate EBS volumes if present
-    if (args.ebsVolumes) {
-      args.ebsVolumes.forEach((volume, index) => {
-        this.validateEbsVolume(volume, index);
-      });
-    }
-  }
-
-  /**
-   * Validates instance type format
-   */
-  private validateInstanceType(instanceType: string): void {
-    const instanceTypeRegex =
-      /^[a-z0-9]+\.(nano|micro|small|medium|large|xlarge|2xlarge|4xlarge|8xlarge|16xlarge|32xlarge|metal)$/i;
-    if (!instanceTypeRegex.test(instanceType)) {
-      throw new Error(`Invalid instance type: ${instanceType}`);
-    }
-  }
-
-  /**
-   * Validates AMI ID format
-   */
-  private validateAmiId(amiId: string): void {
-    const amiIdRegex = /^ami-[a-f0-9]{8,17}$/i;
-    if (!amiIdRegex.test(amiId)) {
-      throw new Error(
-        `Invalid AMI ID format: ${amiId}. Expected format: ami-xxxxxxxx or ami-xxxxxxxxxxxxxxxxx`
-      );
-    }
-  }
-
-  /**
-   * Validates subnet ID format
-   */
-  private validateSubnetId(subnetId: string): void {
-    const subnetIdRegex = /^subnet-[a-f0-9]{8,17}$/i;
-    if (!subnetIdRegex.test(subnetId)) {
-      throw new Error(
-        `Invalid subnet ID format: ${subnetId}. Expected format: subnet-xxxxxxxx or subnet-xxxxxxxxxxxxxxxxx`
-      );
-    }
-  }
-
-  /**
-   * Validates security group ID format
-   */
-  private validateSecurityGroupId(sgId: string, index: number): void {
-    const sgIdRegex = /^sg-[a-f0-9]{8,17}$/i;
-    if (!sgIdRegex.test(sgId)) {
-      throw new Error(
-        `Invalid security group ID format at index ${index}: ${sgId}. Expected format: sg-xxxxxxxx or sg-xxxxxxxxxxxxxxxxx`
-      );
-    }
-  }
-
-  /**
-   * Validates EBS volume configuration
-   */
-  private validateEbsVolume(volume: EbsVolumeArgs, index: number): void {
-    if (!volume.name) {
-      throw new Error(`EBS volume name is required at index ${index}`);
-    }
-
-    if (!volume.size || volume.size < 1 || volume.size > 16384) {
-      throw new Error(
-        `EBS volume size must be between 1 and 16384 GB at index ${index}`
-      );
-    }
-
-    if (!volume.availabilityZone) {
-      throw new Error(
-        `EBS volume availability zone is required at index ${index}`
-      );
-    }
-
-    const validTypes = ["standard", "gp2", "gp3", "io1", "io2"];
-    if (volume.type && !validTypes.includes(volume.type)) {
-      throw new Error(
-        `Invalid EBS volume type at index ${index}: ${volume.type}. Valid types: ${validTypes.join(", ")}`
-      );
-    }
-
-    if (volume.iops && (volume.iops < 100 || volume.iops > 64000)) {
-      throw new Error(
-        `EBS volume IOPS must be between 100 and 64000 at index ${index}`
-      );
-    }
-
-    if (
-      volume.throughput &&
-      (volume.throughput < 125 || volume.throughput > 1000)
-    ) {
-      throw new Error(
-        `EBS volume throughput must be between 125 and 1000 MiB/s at index ${index}`
-      );
-    }
+    return args;
   }
 }

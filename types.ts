@@ -1,186 +1,200 @@
 import * as pulumi from "@pulumi/pulumi";
 
 /**
- * Input arguments for the EC2 instance component
+ * Enterprise EC2 Instance Operating System Options
  */
-export interface Ec2InstanceArgs {
+export type OperatingSystem =
+  | "amazon-linux-2023"
+  | "amazon-linux-2"
+  | "ubuntu-22-04"
+  | "ubuntu-20-04"
+  | "rhel-9"
+  | "rhel-8"
+  | "centos-7"
+  | "windows-server-2022"
+  | "windows-server-2019";
+
+/**
+ * Simplified Workload Types (combines size, family, and purpose)
+ */
+export type WorkloadType =
+  | "development" // t3.micro, basic monitoring, no backup
+  | "web-server" // t3.medium, enhanced monitoring, daily backup
+  | "application" // t3.large, detailed monitoring, weekly backup
+  | "database" // r6i.large, enhanced monitoring, daily backup
+  | "high-performance" // c6i.xlarge, enterprise monitoring, critical backup
+  | "testing" // t3.micro, basic monitoring, no backup
+  | "production"; // m6i.large, enterprise monitoring, daily backup;
+
+/**
+ * Enterprise EC2 Instance Environment
+ */
+export type Environment =
+  | "development"
+  | "staging"
+  | "production"
+  | "disaster-recovery"
+  | "testing";
+
+/**
+ * Enterprise EC2 Instance Access Type
+ */
+export type AccessType =
+  | "private-only" // No public IP, internal access only
+  | "bastion-access" // Private with bastion host access
+  | "public-access" // Public IP for external access
+  | "load-balancer"; // Behind load balancer
+
+/**
+ * Enterprise EC2 Instance Backup Strategy
+ */
+export type BackupStrategy =
+  | "none" // No backup
+  | "daily" // Daily backup
+  | "weekly" // Weekly backup
+  | "critical"; // Critical data backup
+
+/**
+ * Enterprise EC2 Instance Monitoring Level
+ */
+export type MonitoringLevel =
+  | "basic" // Basic CloudWatch monitoring
+  | "detailed" // Detailed monitoring (1-minute intervals)
+  | "enhanced" // Enhanced monitoring with custom metrics
+  | "enterprise"; // Enterprise monitoring with logging
+
+/**
+ * Simplified Enterprise EC2 Instance Arguments
+ */
+export interface EnterpriseEc2Args {
   /**
-   * The name of the EC2 instance
+   * Instance name (used for resource naming and tagging)
    */
-  name: string;
+  readonly name: string;
 
   /**
-   * The instance type (e.g., "t3.micro", "m5.large")
+   * Operating system to use
    */
-  instanceType: string;
+  readonly operatingSystem: OperatingSystem;
 
   /**
-   * The AMI ID to use for the instance
+   * Workload type (determines instance size, monitoring, backup, etc.)
    */
-  amiId: string;
+  readonly workload: WorkloadType;
 
   /**
-   * The subnet ID where the instance will be launched
+   * Project name for cost allocation
    */
-  subnetId: string;
+  readonly project: string;
 
   /**
-   * The security group IDs to attach to the instance
+   * Subnet ID where instance will be launched
    */
-  securityGroupIds: string[];
+  readonly subnetId: string;
 
   /**
-   * The key pair name for SSH access (optional)
+   * Security group IDs to attach
    */
-  keyPairName?: string;
+  readonly securityGroupIds: string[];
 
   /**
-   * The IAM instance profile name or ARN
+   * SSH key pair name (optional - teams can use SSM, VPN, bastion hosts, etc.)
    */
-  iamInstanceProfile?: string;
+  readonly keyPairName?: string;
 
   /**
-   * Environment name (e.g., "dev", "staging", "prod")
+   * Environment for resource configuration (auto-configures monitoring, backup, etc.)
+   * Default: Based on workload type
    */
-  environment: string;
+  environment?: Environment;
 
   /**
-   * Project name
+   * Team or department responsible for the instance
+   * Default: "infrastructure"
    */
-  project: string;
+  team?: string;
 
   /**
-   * The availability zone for the instance
+   * Application name this instance supports
+   * Default: "general"
    */
-  availabilityZone?: string;
+  application?: string;
 
   /**
-   * The root block device configuration
+   * Cost center for financial tracking
+   * Default: "IT-001"
    */
-  rootBlockDevice?: RootBlockDeviceArgs;
+  costCenter?: string;
 
   /**
-   * Additional EBS volumes to attach
+   * Access type for the instance
+   * Default: "private-only"
    */
-  ebsVolumes?: EbsVolumeArgs[];
+  accessType?: AccessType;
 
   /**
-   * User data script to run on instance startup
+   * Root volume size in GB
+   * Default: Based on OS and workload
+   */
+  rootVolumeSize?: number;
+
+  /**
+   * Additional EBS volumes
+   */
+  additionalVolumes?: AdditionalVolumeArgs[];
+
+  /**
+   * User data script for instance initialization
    */
   userData?: string;
 
   /**
-   * Whether to enable detailed monitoring
-   * Default: true
+   * IAM instance profile for permissions
    */
-  enableDetailedMonitoring?: boolean;
+  iamInstanceProfile?: string;
 
   /**
-   * Whether to enable source/destination check
-   * Default: true
+   * Additional tags for the instance
    */
-  enableSourceDestCheck?: boolean;
+  tags?: Record<string, string>;
+
+  // Advanced options (optional - for power users)
+  /**
+   * Custom backup strategy (overrides workload defaults)
+   */
+  backupStrategy?: BackupStrategy;
+
+  /**
+   * Custom monitoring level (overrides workload defaults)
+   */
+  monitoringLevel?: MonitoringLevel;
 
   /**
    * Whether to enable termination protection
-   * Default: false
+   * Default: Based on workload and environment
    */
   enableTerminationProtection?: boolean;
-
-  /**
-   * The tenancy of the instance
-   * Default: "default"
-   * Valid values: "default", "dedicated", "host"
-   */
-  tenancy?: string;
-
-  /**
-   * Whether to associate a public IP address
-   * Default: false
-   */
-  associatePublicIpAddress?: boolean;
-
-  /**
-   * The placement group name (optional)
-   */
-  placementGroup?: string;
-
-  /**
-   * Additional tags to apply to the instance
-   */
-  tags?: Record<string, string>;
 }
 
 /**
- * Root block device configuration
+ * Additional EBS volume configuration
  */
-export interface RootBlockDeviceArgs {
+export interface AdditionalVolumeArgs {
   /**
-   * The size of the root volume in GB
-   * Default: 8
-   */
-  volumeSize?: number;
-
-  /**
-   * The type of the root volume
-   * Default: "gp3"
-   * Valid values: "standard", "gp2", "gp3", "io1", "io2"
-   */
-  volumeType?: string;
-
-  /**
-   * Whether to delete the volume on instance termination
-   * Default: true
-   */
-  deleteOnTermination?: boolean;
-
-  /**
-   * Whether to encrypt the root volume
-   * Default: true
-   */
-  encrypted?: boolean;
-
-  /**
-   * The KMS key ID for encryption (optional)
-   */
-  kmsKeyId?: string;
-
-  /**
-   * The IOPS for the volume (for io1/io2 types)
-   */
-  iops?: number;
-
-  /**
-   * The throughput for the volume in MiB/s (for gp3)
-   */
-  throughput?: number;
-}
-
-/**
- * EBS volume configuration
- */
-export interface EbsVolumeArgs {
-  /**
-   * The name of the volume
+   * Volume name
    */
   name: string;
 
   /**
-   * The size of the volume in GB
+   * Volume size in GB
    */
   size: number;
 
   /**
-   * The type of the volume
+   * Volume type
    * Default: "gp3"
-   * Valid values: "standard", "gp2", "gp3", "io1", "io2"
    */
-  type?: string;
-
-  /**
-   * The availability zone for the volume
-   */
-  availabilityZone: string;
+  type?: "standard" | "gp2" | "gp3" | "io1" | "io2";
 
   /**
    * Whether to encrypt the volume
@@ -189,72 +203,118 @@ export interface EbsVolumeArgs {
   encrypted?: boolean;
 
   /**
-   * The KMS key ID for encryption (optional)
+   * KMS key ID for encryption
    */
   kmsKeyId?: string;
 
   /**
-   * The IOPS for the volume (for io1/io2 types)
+   * IOPS for io1/io2 volumes
    */
   iops?: number;
 
   /**
-   * The throughput for the volume in MiB/s (for gp3)
+   * Throughput for gp3 volumes (MiB/s)
    */
   throughput?: number;
 
   /**
-   * Additional tags for the volume
+   * Mount point (e.g., "/data", "/logs")
    */
-  tags?: Record<string, string>;
+  mountPoint?: string;
 }
 
 /**
- * Output values from the EC2 instance component
+ * Enterprise EC2 Instance Result
  */
-export interface Ec2InstanceResult {
+export interface EnterpriseEc2Result {
   /**
-   * The ID of the created EC2 instance
+   * Instance ID
    */
   instanceId: pulumi.Output<string>;
 
   /**
-   * The public IP address of the instance (if applicable)
+   * Public IP address (if applicable)
    */
   publicIp: pulumi.Output<string | undefined>;
 
   /**
-   * The private IP address of the instance
+   * Private IP address
    */
   privateIp: pulumi.Output<string>;
 
   /**
-   * The public DNS name of the instance (if applicable)
+   * Public DNS name (if applicable)
    */
   publicDns: pulumi.Output<string | undefined>;
 
   /**
-   * The private DNS name of the instance
+   * Private DNS name
    */
   privateDns: pulumi.Output<string>;
 
   /**
-   * The availability zone of the instance
+   * Availability zone
    */
   availabilityZone: pulumi.Output<string>;
 
   /**
-   * The ARN of the instance
+   * Instance ARN
    */
   arn: pulumi.Output<string>;
 
   /**
-   * The state of the instance
+   * Instance state
    */
   state: pulumi.Output<string>;
 
   /**
-   * The IDs of attached EBS volumes
+   * Root volume ID
    */
-  ebsVolumeIds: pulumi.Output<string[]>;
+  rootVolumeId: pulumi.Output<string>;
+
+  /**
+   * Additional volume IDs
+   */
+  additionalVolumeIds: pulumi.Output<string[]>;
+
+  /**
+   * SSH connection string (for Linux instances)
+   */
+  sshConnectionString?: pulumi.Output<string>;
+
+  /**
+   * RDP connection string (for Windows instances)
+   */
+  rdpConnectionString?: pulumi.Output<string>;
+
+  /**
+   * CloudWatch dashboard URL
+   */
+  cloudWatchDashboardUrl: pulumi.Output<string>;
+}
+
+/**
+ * OS-specific configuration
+ */
+export interface OsConfig {
+  readonly amiId: string;
+  readonly defaultRootVolumeSize: number;
+  readonly userDataTemplate?: string;
+  readonly requiresKeyPair: boolean;
+  readonly sshUser: string;
+  readonly rdpUser?: string;
+}
+
+/**
+ * Workload configuration (combines instance type and settings)
+ */
+export interface WorkloadConfig {
+  readonly instanceType: string;
+  readonly vcpus: number;
+  readonly memoryGiB: number;
+  readonly networkPerformance: string;
+  readonly monitoringLevel: MonitoringLevel;
+  readonly backupStrategy: BackupStrategy;
+  readonly terminationProtection: boolean;
+  readonly rootVolumeSize: number;
 }
