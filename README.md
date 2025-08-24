@@ -1,671 +1,187 @@
-# Enterprise EC2 Instance Component
+# AWS EC2 Component
 
-A simplified, enterprise-ready AWS EC2 instance component that provides company-approved configurations, security best practices, and cost optimization out of the box.
+Enterprise-ready AWS EC2 instance component with security best practices.
 
-## 🚀 **Quick Start (5 Minutes)**
+## Overview
 
-### **Level 1: "Just Deploy" - Minimal Configuration**
+This component creates EC2 instances with:
+
+- Smart defaults based on workload and environment
+- Enterprise security defaults (encryption, monitoring)
+- **Enterprise security: NO public IP addresses (private network only)**
+- Proper tagging for cost allocation
+- CrossGuard compliance ready
+- Simplified interface for platform engineers
+
+## Features
+
+- **Smart Defaults**: Automatically selects appropriate instance types, volumes, and settings based on workload
+- **Enterprise Security**: Encryption at rest, proper monitoring, and security group integration
+- **Private Network Only**: **NO public IP addresses for enterprise security**
+- **Cost Optimization**: Appropriate instance sizing and volume types for different workloads
+- **Simplified Interface**: Easy-to-use configuration with sensible defaults
+- **Monitoring Ready**: CloudWatch dashboard creation and detailed monitoring options
+
+## Enterprise Security
+
+This component enforces enterprise security best practices:
+
+- **NO Public IP Addresses**: All instances are private-network-only
+- **Private Subnet Deployment**: Instances must be deployed in private subnets
+- **Security Group Integration**: Proper network segmentation via security groups
+- **Encrypted Storage**: All EBS volumes encrypted by default
+- **Access Control**: Access via VPN, Direct Connect, Systems Manager (SSM), or bastion hosts
+
+## Usage
+
+### Basic Example
 
 ```typescript
-import {
-  EnterpriseEc2Instance,
-  OPERATING_SYSTEMS,
-  WORKLOAD_TYPES,
-} from "@proserve/aws-ec2";
+import { Ec2 } from "aws-ec2";
 
-const instance = new EnterpriseEc2Instance("my-server", {
-  name: "my-server",
-  operatingSystem: OPERATING_SYSTEMS.AMAZON_LINUX_2023,
-  workload: WORKLOAD_TYPES.WEB_SERVER,
-  project: "my-project",
-  subnetId: "subnet-123",
-  securityGroupIds: ["sg-123"],
-  // No keyPairName needed - use SSM for access
-});
-```
-
-**That's it!** You now have a production-ready EC2 instance with:
-
-- ✅ Latest Amazon Linux 2023 AMI
-- ✅ t3.medium instance (2 vCPU, 4 GB RAM)
-- ✅ Enhanced monitoring and daily backup
-- ✅ Termination protection enabled
-- ✅ Enterprise security defaults
-
-## 📚 **Progressive Complexity Levels**
-
-### **Level 1: "Just Deploy" (6 parameters)**
-
-```typescript
-const instance = new EnterpriseEc2Instance("my-server", {
-  name: "my-server",
+const instance = new Ec2("my-instance", {
+  name: "my-instance",
   operatingSystem: "amazon-linux-2023",
   workload: "web-server",
   project: "my-project",
-  subnetId: "subnet-123",
-  securityGroupIds: ["sg-123"],
-  keyPairName: "my-key",
+  subnetId: "subnet-12345", // Must be a private subnet
+  securityGroupIds: ["sg-12345"],
 });
 ```
 
-### **Level 2: "Team Ready" (Add business context)**
+### Advanced Example
 
 ```typescript
-const instance = new EnterpriseEc2Instance("my-server", {
-  name: "my-server",
-  operatingSystem: "amazon-linux-2023",
-  workload: "web-server",
-  project: "my-project",
-  subnetId: "subnet-123",
-  securityGroupIds: ["sg-123"],
-  keyPairName: "my-key",
-  // Add team context
-  team: "web-team",
-  environment: "production",
-  application: "company-website",
-  costCenter: "WEB-001",
-});
-```
-
-### **Level 3: "Common Use Cases" (Different workload types)**
-
-```typescript
-// Web server
-const webServer = new EnterpriseEc2Instance("web-server", {
-  name: "web-server",
-  operatingSystem: "amazon-linux-2023",
-  workload: "web-server",
-  project: "web-project",
-  subnetId: "subnet-123",
-  securityGroupIds: ["sg-123"],
-  keyPairName: "web-key",
-  team: "web-team",
-  application: "company-website",
-  costCenter: "WEB-001",
-});
-
-// Development instance
-const devInstance = new EnterpriseEc2Instance("dev-instance", {
-  name: "dev-instance",
-  operatingSystem: "ubuntu-22-04",
-  workload: "development",
-  project: "dev-project",
-  subnetId: "subnet-123",
-  securityGroupIds: ["sg-123"],
-  keyPairName: "dev-key",
-  team: "dev-team",
-  application: "mobile-backend",
-  costCenter: "DEV-001",
-});
-
-// Database server
-const database = new EnterpriseEc2Instance("database", {
-  name: "database",
+const instance = new Ec2("production-instance", {
+  name: "production-instance",
   operatingSystem: "rhel-9",
   workload: "database",
-  project: "database-project",
-  subnetId: "subnet-123",
-  securityGroupIds: ["sg-123"],
-  keyPairName: "db-key",
+  project: "customer-database",
+  subnetId: "subnet-12345", // Must be a private subnet
+  securityGroupIds: ["sg-12345"],
+  environment: "production",
   team: "data-team",
   application: "customer-database",
   costCenter: "DATA-001",
-  additionalVolumes: [
-    {
-      name: "database",
-      size: 500,
-      type: "gp3",
-      encrypted: true,
-      mountPoint: "/var/lib/mysql",
-    },
-  ],
-});
-```
-
-### **Level 4: "Advanced Features" (Custom configuration)**
-
-```typescript
-const instance = new EnterpriseEc2Instance("my-server", {
-  name: "my-server",
-  operatingSystem: "amazon-linux-2023",
-  workload: "high-performance",
-  project: "my-project",
-  subnetId: "subnet-123",
-  securityGroupIds: ["sg-123"],
-  keyPairName: "my-key",
-  team: "performance-team",
-  application: "ml-pipeline",
-  costCenter: "ML-001",
-  // Advanced features
-  additionalVolumes: [
-    {
-      name: "data",
-      size: 1000,
-      type: "gp3",
-      encrypted: true,
-      mountPoint: "/data",
-    },
-  ],
-  userData: `#!/bin/bash
-yum update -y
-yum install -y docker`,
-  // Override workload defaults
-  backupStrategy: "critical",
-  monitoringLevel: "enterprise",
+  instanceType: "m5.xlarge",
+  rootVolumeSize: 100,
+  rootVolumeType: "io2",
+  enableDetailedMonitoring: true,
   enableTerminationProtection: true,
+  tags: {
+    Owner: "data-team",
+    Purpose: "database-server",
+  },
 });
 ```
 
-## 🔑 **Key Pair & Connection Methods**
+## Configuration
 
-### **Key Pairs Are Optional**
+### Required Parameters
 
-- **Key pairs are NOT required** for any instance type
-- **Teams can choose** their preferred connection method
-- **Multiple connection options** available for enterprise environments
-
-### **Connection Methods Available**
-
-#### **1. SSH Key Pairs (Traditional)**
-
-```typescript
-const instance = new EnterpriseEc2Instance("my-server", {
-  // ... other config
-  keyPairName: "my-team-key", // Must exist in AWS
-});
-```
-
-#### **2. AWS Systems Manager (SSM) - Recommended**
-
-```typescript
-const instance = new EnterpriseEc2Instance("my-server", {
-  // ... other config
-  // No keyPairName needed - use SSM instead
-});
-
-// Connect via SSM:
-// aws ssm start-session --target <instance-id>
-```
-
-#### **3. VPN/Direct Connect**
-
-```typescript
-const instance = new EnterpriseEc2Instance("my-server", {
-  // ... other config
-  accessType: "private-only", // Only accessible via VPC
-});
-```
-
-#### **4. Bastion Hosts**
-
-```typescript
-const instance = new EnterpriseEc2Instance("my-server", {
-  // ... other config
-  accessType: "private-only", // Access via jump server
-});
-```
-
-#### **5. Load Balancer Health Checks**
-
-```typescript
-const instance = new EnterpriseEc2Instance("my-server", {
-  // ... other config
-  // For web applications - no direct access needed
-});
-```
-
-### **Key Pair Setup (If Using SSH)**
-
-If you choose to use SSH key pairs:
-
-```bash
-# Create key pair via AWS CLI
-aws ec2 create-key-pair --key-name my-team-key --query 'KeyMaterial' --output text > my-team-key.pem
-
-# Set proper permissions
-chmod 400 my-team-key.pem
-
-# Use in component
-keyPairName: "my-team-key"
-```
-
-### **SSM Setup (Recommended)**
-
-For secure, keyless access:
-
-```bash
-# Install Session Manager plugin
-# https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html
-
-# Connect to instance
-aws ssm start-session --target <instance-id>
-```
-
-## 🎯 **Workload Types (Simplified Configuration)**
-
-Instead of complex instance sizing, use business-focused workload types:
-
-| Workload           | Instance Type | CPU    | Memory | Use Case              | Monitoring | Backup   |
-| ------------------ | ------------- | ------ | ------ | --------------------- | ---------- | -------- |
-| `development`      | t3.micro      | 2 vCPU | 1 GB   | Development, testing  | Basic      | None     |
-| `web-server`       | t3.medium     | 2 vCPU | 4 GB   | Web hosting           | Detailed   | Daily    |
-| `application`      | t3.large      | 2 vCPU | 8 GB   | Application servers   | Detailed   | Weekly   |
-| `database`         | r6i.large     | 2 vCPU | 16 GB  | Database servers      | Enhanced   | Daily    |
-| `high-performance` | c6i.xlarge    | 4 vCPU | 8 GB   | ML, compute-intensive | Enterprise | Critical |
-| `testing`          | t3.micro      | 2 vCPU | 1 GB   | Testing, staging      | Basic      | None     |
-| `production`       | m6i.large     | 2 vCPU | 8 GB   | Production workloads  | Enterprise | Daily    |
-
-## 🖥️ **Operating Systems**
-
-| OS                    | Description                | Default Volume Size | SSH User      |
-| --------------------- | -------------------------- | ------------------- | ------------- |
-| `amazon-linux-2023`   | Amazon Linux 2023          | 8 GB                | ec2-user      |
-| `amazon-linux-2`      | Amazon Linux 2             | 8 GB                | ec2-user      |
-| `ubuntu-22-04`        | Ubuntu 22.04 LTS           | 10 GB               | ubuntu        |
-| `ubuntu-20-04`        | Ubuntu 20.04 LTS           | 10 GB               | ubuntu        |
-| `rhel-9`              | Red Hat Enterprise Linux 9 | 10 GB               | ec2-user      |
-| `rhel-8`              | Red Hat Enterprise Linux 8 | 10 GB               | ec2-user      |
-| `centos-7`            | CentOS 7                   | 8 GB                | centos        |
-| `windows-server-2022` | Windows Server 2022        | 30 GB               | Administrator |
-| `windows-server-2019` | Windows Server 2019        | 30 GB               | Administrator |
-
-## 🔧 **Configuration Options**
-
-### **Required Parameters (6 total)**
-
-- `name`: Instance name for resource naming and tagging
-- `operatingSystem`: Predefined OS selection
-- `workload`: Workload type (development, web-server, database, etc.)
+- `name`: Instance name (used for resource naming and tagging)
+- `operatingSystem`: Operating system to use
+- `workload`: Workload type (determines instance size, monitoring, backup, etc.)
 - `project`: Project name for cost allocation
-- `subnetId`: Subnet where instance will be launched
-- `securityGroupIds`: Security groups to attach
+- `subnetId`: **Private subnet ID** where instance will be launched (NO public subnets)
+- `securityGroupIds`: Security group IDs to attach
 
-### **Optional Parameters**
+### Optional Parameters
 
-- `keyPairName`: SSH key pair (optional - teams can use SSM, VPN, bastion hosts, etc.)
-- `team`: Team responsible for the instance
-- `environment`: Environment (auto-configured based on workload)
-- `application`: Application name
-- `costCenter`: Cost center for financial tracking
-- `accessType`: Network access type
-- `rootVolumeSize`: Root volume size in GB
-- `additionalVolumes`: Additional EBS volumes
-- `userData`: Custom initialization script
-- `iamInstanceProfile`: IAM role for permissions
+- `keyPairName`: SSH key pair name (optional - teams can use SSM, VPN, bastion hosts, etc.)
+- `environment`: Environment for resource configuration (auto-configures monitoring, backup, etc.)
+- `team`: Team or department responsible for the instance (default: "infrastructure")
+- `application`: Application name this instance supports (default: "general")
+- `costCenter`: Cost center for financial tracking (default: "IT-001")
+- `instanceType`: Instance type (auto-selected based on workload if not specified)
+- `rootVolumeSize`: Root volume size in GB (auto-selected based on OS and workload)
+- `rootVolumeType`: Root volume type (default: "gp3" for most workloads, "io2" for high-performance)
+- `enableDetailedMonitoring`: Whether to enable detailed monitoring (default: true for production workloads)
+- `enableTerminationProtection`: Whether to enable termination protection (default: true for production workloads)
+- `iamInstanceProfile`: IAM instance profile ARN (optional)
+- `userData`: User data script (optional)
+- `tags`: Additional tags to apply to all resources
 
-### **Advanced Options (Override workload defaults)**
+## Operating Systems
 
-- `backupStrategy`: Custom backup strategy
-- `monitoringLevel`: Custom monitoring level
-- `enableTerminationProtection`: Custom termination protection
+Supported operating systems:
 
-## 🏢 **Enterprise Features**
+- `amazon-linux-2023`
+- `amazon-linux-2`
+- `ubuntu-22-04`
+- `ubuntu-20-04`
+- `rhel-9`
+- `rhel-8`
+- `centos-7`
+- `windows-server-2022`
+- `windows-server-2019`
 
-### **Security & Compliance**
+## Workload Types
 
-- **Encryption**: All EBS volumes encrypted by default
-- **IAM Integration**: Support for instance profiles and roles
-- **Security Groups**: Proper network segmentation
-- **Compliance Tags**: Enterprise tagging for audit and compliance
+Supported workload types with automatic configuration:
 
-### **Monitoring & Alerting**
+- `development`: t3.micro, basic monitoring, no termination protection
+- `testing`: t3.small, basic monitoring, no termination protection
+- `web-server`: t3.small, basic monitoring, no termination protection
+- `application`: t3.medium, basic monitoring, no termination protection
+- `database`: m5.large, detailed monitoring, termination protection
+- `high-performance`: c5.xlarge, detailed monitoring, termination protection
+- `production`: m5.large, detailed monitoring, termination protection
 
-- **CloudWatch Integration**: Automatic metric collection
-- **Custom Dashboard**: Pre-built monitoring dashboard
-- **Alerts**: CPU, status check, and custom metric alarms
-- **Logging**: Comprehensive logging and audit trails
+## Outputs
 
-### **Backup & Recovery**
+- `instanceId`: The ID of the created EC2 instance
+- `privateIp`: The private IP address of the instance
+- `privateDns`: The private DNS name of the instance
+- `availabilityZone`: The availability zone of the instance
+- `arn`: The ARN of the instance
+- `state`: The current state of the instance
+- `rootVolumeId`: The ID of the root volume
 
-- **Automated Backup**: Configurable backup strategies
-- **Maintenance Windows**: Scheduled backup windows
-- **Retention Policies**: Configurable backup retention
-- **Recovery Procedures**: Documented recovery processes
+**Note**: No public IP addresses are provided for enterprise security.
 
-### **Cost Management**
+## Security Features
 
-- **Cost Allocation**: Team, project, and cost center tagging
-- **Resource Optimization**: Right-sized instances and volumes
-- **Budget Tracking**: Clear cost allocation for finance teams
+- **Encryption**: All EBS volumes are encrypted by default
+- **Private Network Only**: **NO public IP addresses - enterprise security enforced**
+- **Security Groups**: Integration with existing security groups
+- **IAM Integration**: Support for IAM instance profiles
+- **Monitoring**: CloudWatch dashboard creation and detailed monitoring
+- **Termination Protection**: Automatic protection for production workloads
 
-## 📖 **Examples by Use Case**
+## Access Methods
 
-### **Web Server (Production)**
+Since instances are private-network-only, access is provided through enterprise-approved methods:
 
-```typescript
-import {
-  EnterpriseEc2Instance,
-  OPERATING_SYSTEMS,
-  WORKLOAD_TYPES,
-  ENVIRONMENTS,
-} from "@proserve/aws-ec2";
+1. **AWS Systems Manager (SSM)**: `aws ssm start-session --target <instance-id>`
+2. **VPN Connection**: Access via corporate VPN
+3. **Direct Connect**: Access via corporate network
+4. **Bastion Hosts**: Jump server access
+5. **Load Balancer**: For web applications (no direct instance access)
 
-const webServer = new EnterpriseEc2Instance("web-server", {
-  name: "company-website",
-  operatingSystem: OPERATING_SYSTEMS.AMAZON_LINUX_2023,
-  workload: WORKLOAD_TYPES.WEB_SERVER,
-  project: "company-website",
-  subnetId: "subnet-123",
-  securityGroupIds: ["sg-123"],
-  // No keyPairName needed - use SSM for access
-  team: "web-team",
-  application: "company-website",
-  costCenter: "WEB-001",
-  environment: ENVIRONMENTS.PRODUCTION,
-});
+## Cost Optimization
+
+- **Smart Instance Selection**: Automatically selects appropriate instance types
+- **Volume Optimization**: Uses gp3 for most workloads, io2 for high-performance
+- **Auto-shutdown**: Can be configured for development environments
+- **Cost Tagging**: Proper tagging for cost allocation and tracking
+
+## Examples
+
+See the `examples/basic/` directory for a complete working example.
+
+## Dependencies
+
+- `@pulumi/pulumi` ^3.0.0
+- `@pulumi/aws` ^6.0.0
+
+## Building
+
+```bash
+npm install
+npm run build
 ```
 
-### **Development Instance**
+## License
 
-```typescript
-import {
-  EnterpriseEc2Instance,
-  OPERATING_SYSTEMS,
-  WORKLOAD_TYPES,
-  ENVIRONMENTS,
-} from "@proserve/aws-ec2";
-
-const devInstance = new EnterpriseEc2Instance("dev-instance", {
-  name: "dev-server",
-  operatingSystem: OPERATING_SYSTEMS.UBUNTU_22_04,
-  workload: WORKLOAD_TYPES.DEVELOPMENT,
-  project: "mobile-app",
-  subnetId: "subnet-123",
-  securityGroupIds: ["sg-123"],
-  keyPairName: "dev-key", // Dev team prefers SSH key pairs
-  team: "dev-team",
-  application: "mobile-backend",
-  costCenter: "DEV-001",
-  environment: ENVIRONMENTS.DEVELOPMENT,
-});
-```
-
-### **Database Server**
-
-```typescript
-import {
-  EnterpriseEc2Instance,
-  OPERATING_SYSTEMS,
-  WORKLOAD_TYPES,
-  ACCESS_TYPES,
-  VOLUME_TYPES,
-  ENVIRONMENTS,
-} from "@proserve/aws-ec2";
-
-const dbServer = new EnterpriseEc2Instance("db-server", {
-  name: "customer-db",
-  operatingSystem: OPERATING_SYSTEMS.RHEL_9,
-  workload: WORKLOAD_TYPES.DATABASE,
-  project: "customer-portal",
-  subnetId: "subnet-123",
-  securityGroupIds: ["sg-123"],
-  // No keyPairName needed - access via VPN/Direct Connect
-  team: "data-team",
-  application: "customer-database",
-  costCenter: "DATA-001",
-  environment: ENVIRONMENTS.PRODUCTION,
-  accessType: ACCESS_TYPES.PRIVATE_ONLY, // Only accessible via corporate network
-  additionalVolumes: [
-    {
-      name: "database",
-      size: 500,
-      type: VOLUME_TYPES.GP3,
-      encrypted: true,
-      mountPoint: "/var/lib/mysql",
-    },
-  ],
-});
-```
-
-### **High-Performance Computing**
-
-```typescript
-const mlInstance = new EnterpriseEc2Instance("ml-pipeline", {
-  name: "ml-pipeline",
-  operatingSystem: "amazon-linux-2023",
-  workload: "high-performance",
-  project: "ml-project",
-  subnetId: "subnet-123",
-  securityGroupIds: ["sg-123"],
-  keyPairName: "ml-key",
-  team: "ml-team",
-  application: "ml-pipeline",
-  costCenter: "ML-001",
-  additionalVolumes: [
-    {
-      name: "data",
-      size: 1000,
-      type: "gp3",
-      encrypted: true,
-      mountPoint: "/data",
-    },
-  ],
-  userData: `#!/bin/bash
-yum update -y
-yum install -y docker python3-pip`,
-});
-```
-
-## 🎓 **Onboarding Path**
-
-### **Week 1: Basic Deployment**
-
-1. Use Level 1 configuration
-2. Deploy your first instance
-3. Understand the outputs and monitoring
-
-### **Week 2: Team Integration**
-
-1. Add team and project context
-2. Try different workload types
-3. Understand workload benefits
-
-### **Week 3: Advanced Features**
-
-1. Customize monitoring and backup
-2. Add additional volumes
-3. Use custom user data scripts
-
-### **Week 4: Production Deployment**
-
-1. Deploy production instances
-2. Configure advanced security
-3. Set up monitoring and alerting
-
-## 🔍 **Runtime Validation & Error Messages**
-
-The component provides helpful error messages when invalid values are used:
-
-### **Invalid Operating System**
-
-```typescript
-// ❌ This will throw a helpful error
-const instance = new EnterpriseEc2Instance("my-server", {
-  operatingSystem: "invalid-os", // ❌ Invalid value
-  // ... other config
-});
-
-// Error: Invalid operatingSystem: "invalid-os".
-// Valid values: amazon-linux-2023, amazon-linux-2, ubuntu-22-04, ubuntu-20-04,
-// rhel-9, rhel-8, centos-7, windows-server-2022, windows-server-2019
-```
-
-### **Invalid Workload Type**
-
-```typescript
-// ❌ This will throw a helpful error
-const instance = new EnterpriseEc2Instance("my-server", {
-  workload: "invalid-workload", // ❌ Invalid value
-  // ... other config
-});
-
-// Error: Invalid workload: "invalid-workload".
-// Valid values: development, web-server, application, database,
-// high-performance, testing, production
-```
-
-### **Invalid Volume Type**
-
-```typescript
-// ❌ This will throw a helpful error
-const instance = new EnterpriseEc2Instance("my-server", {
-  additionalVolumes: [
-    {
-      name: "data",
-      size: 100,
-      type: "invalid-type", // ❌ Invalid value
-    },
-  ],
-  // ... other config
-});
-
-// Error: Invalid volume type: "invalid-type".
-// Valid values: standard, gp2, gp3, io1, io2
-```
-
-## 🎯 **Best Practices**
-
-1. **Start Simple**: Use Level 1 configuration to get started
-2. **Add Context**: Include team, project, and cost center information
-3. **Right-Size**: Let workload types choose optimal instance sizes
-4. **Monitor**: Use built-in CloudWatch monitoring and alerts
-5. **Backup**: Choose appropriate backup strategy for data criticality
-6. **Key Pairs**: Ensure key pairs exist before deployment
-
-## 🔒 **Compliance & Governance**
-
-This component is designed to meet enterprise compliance requirements:
-
-- **SOC 2**: Security controls and monitoring
-- **PCI DSS**: Data encryption and access controls
-- **HIPAA**: Secure data handling and audit trails
-- **ISO 27001**: Information security management
-- **GDPR**: Data protection and privacy controls
-
-## 🆘 **Support & Troubleshooting**
-
-### **Common Issues**
-
-1. **Missing Key Pair**: Linux instances require a key pair
-2. **Invalid Subnet**: Ensure subnet ID is in correct format
-3. **Security Groups**: At least one security group is required
-
-### **Getting Help**
-
-- Check the examples in this README
-- Review the progressive complexity levels
-- Start with Level 1 and add complexity as needed
-- Contact the infrastructure team for advanced configuration
-
-## 🚀 **Migration from Old Component**
-
-If you're using the old EC2 component:
-
-1. **Replace imports**: Update to new component
-2. **Simplify configuration**: Use workload types instead of size/family/purpose
-3. **Add business context**: Include team, project, and cost center
-4. **Ensure key pairs exist**: Create key pairs before deployment
-
-The new component maintains all enterprise features while making deployment much simpler and faster.
-
-## 📋 **Usage in IDP Templates**
-
-This component is designed to be used within IDP templates:
-
-```typescript
-// In your IDP template (separate Pulumi program)
-import { EnterpriseEc2Instance } from "@proserve/aws-ec2";
-
-export = async () => {
-  const webServer = new EnterpriseEc2Instance("web-server", {
-    name: "web-server",
-    operatingSystem: "amazon-linux-2023",
-    workload: "web-server",
-    project: "web-project",
-    subnetId: "subnet-123",
-    securityGroupIds: ["sg-123"],
-    keyPairName: "web-team-key", // Must exist in AWS
-  });
-
-  return {
-    instanceId: webServer.instanceId,
-    publicIp: webServer.publicIp,
-    sshConnection: webServer.sshConnectionString,
-  };
-};
-```
-
-## 🔧 **Using Constants for Type Safety**
-
-### **Import Constants Instead of Typing Strings**
-
-```typescript
-import {
-  EnterpriseEc2Instance,
-  OPERATING_SYSTEMS, // For OS selection
-  WORKLOAD_TYPES, // For workload types
-  ENVIRONMENTS, // For environment
-  ACCESS_TYPES, // For access configuration
-  VOLUME_TYPES, // For volume configuration
-} from "@proserve/aws-ec2";
-
-// ✅ Use constants (recommended)
-const instance = new EnterpriseEc2Instance("my-server", {
-  operatingSystem: OPERATING_SYSTEMS.AMAZON_LINUX_2023,
-  workload: WORKLOAD_TYPES.WEB_SERVER,
-  environment: ENVIRONMENTS.PRODUCTION,
-  accessType: ACCESS_TYPES.PRIVATE_ONLY,
-  // ... other config
-});
-
-// ❌ Don't type strings manually (error-prone)
-const instance = new EnterpriseEc2Instance("my-server", {
-  operatingSystem: "amazon-linux-2023", // Could have typos
-  workload: "web-server", // Could have typos
-  // ... other config
-});
-```
-
-### **Available Constants**
-
-```typescript
-// Operating Systems
-OPERATING_SYSTEMS.AMAZON_LINUX_2023;
-OPERATING_SYSTEMS.AMAZON_LINUX_2;
-OPERATING_SYSTEMS.UBUNTU_22_04;
-OPERATING_SYSTEMS.UBUNTU_20_04;
-OPERATING_SYSTEMS.RHEL_9;
-OPERATING_SYSTEMS.RHEL_8;
-OPERATING_SYSTEMS.CENTOS_7;
-OPERATING_SYSTEMS.WINDOWS_SERVER_2022;
-OPERATING_SYSTEMS.WINDOWS_SERVER_2019;
-
-// Workload Types
-WORKLOAD_TYPES.DEVELOPMENT;
-WORKLOAD_TYPES.WEB_SERVER;
-WORKLOAD_TYPES.APPLICATION;
-WORKLOAD_TYPES.DATABASE;
-WORKLOAD_TYPES.HIGH_PERFORMANCE;
-WORKLOAD_TYPES.TESTING;
-WORKLOAD_TYPES.PRODUCTION;
-
-// Environments
-ENVIRONMENTS.DEVELOPMENT;
-ENVIRONMENTS.STAGING;
-ENVIRONMENTS.PRODUCTION;
-ENVIRONMENTS.DISASTER_RECOVERY;
-ENVIRONMENTS.TESTING;
-
-// Access Types
-ACCESS_TYPES.PRIVATE_ONLY;
-ACCESS_TYPES.BASTION_ACCESS;
-ACCESS_TYPES.PUBLIC_ACCESS;
-ACCESS_TYPES.LOAD_BALANCER;
-
-// Volume Types
-VOLUME_TYPES.STANDARD;
-VOLUME_TYPES.GP2;
-VOLUME_TYPES.GP3;
-VOLUME_TYPES.IO1;
-VOLUME_TYPES.IO2;
-```
+This component is part of the ProServe IDP platform.

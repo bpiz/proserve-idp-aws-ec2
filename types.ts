@@ -1,87 +1,53 @@
 import * as pulumi from "@pulumi/pulumi";
 
 /**
- * Enterprise EC2 Instance Operating System Options
- * Valid values: "amazon-linux-2023", "amazon-linux-2", "ubuntu-22-04", "ubuntu-20-04",
- * "rhel-9", "rhel-8", "centos-7", "windows-server-2022", "windows-server-2019"
+ * Input arguments for the EC2 component
  */
-export type OperatingSystem = string;
-
-/**
- * Simplified Workload Types (combines size, family, and purpose)
- * Valid values: "development", "web-server", "application", "database", "high-performance",
- * "testing", "production"
- */
-export type WorkloadType = string;
-
-/**
- * Enterprise EC2 Instance Environment
- * Valid values: "development", "staging", "production", "disaster-recovery", "testing"
- */
-export type Environment = string;
-
-/**
- * Enterprise EC2 Instance Access Type
- * Valid values: "private-only", "bastion-access", "public-access", "load-balancer"
- */
-export type AccessType = string;
-
-/**
- * Enterprise EC2 Instance Backup Strategy
- * Valid values: "none", "daily", "weekly", "critical"
- */
-export type BackupStrategy = string;
-
-/**
- * Enterprise EC2 Instance Monitoring Level
- * Valid values: "basic", "detailed", "enhanced", "enterprise"
- */
-export type MonitoringLevel = string;
-
-/**
- * Simplified Enterprise EC2 Instance Arguments
- */
-export interface EnterpriseEc2Args {
+export interface Ec2Args {
   /**
    * Instance name (used for resource naming and tagging)
    */
-  readonly name: string;
+  name: string;
 
   /**
    * Operating system to use
+   * Valid values: "amazon-linux-2023", "amazon-linux-2", "ubuntu-22-04", "ubuntu-20-04",
+   * "rhel-9", "rhel-8", "centos-7", "windows-server-2022", "windows-server-2019"
    */
-  readonly operatingSystem: OperatingSystem;
+  operatingSystem: string;
 
   /**
    * Workload type (determines instance size, monitoring, backup, etc.)
+   * Valid values: "development", "web-server", "application", "database", "high-performance",
+   * "testing", "production"
    */
-  readonly workload: WorkloadType;
+  workload: string;
 
   /**
    * Project name for cost allocation
    */
-  readonly project: string;
+  project: string;
 
   /**
    * Subnet ID where instance will be launched
    */
-  readonly subnetId: string;
+  subnetId: string;
 
   /**
    * Security group IDs to attach
    */
-  readonly securityGroupIds: string[];
+  securityGroupIds: string[];
 
   /**
    * SSH key pair name (optional - teams can use SSM, VPN, bastion hosts, etc.)
    */
-  readonly keyPairName?: string;
+  keyPairName?: string;
 
   /**
    * Environment for resource configuration (auto-configures monitoring, backup, etc.)
    * Default: Based on workload type
    */
-  environment?: Environment;
+  environment?: string;
 
   /**
    * Team or department responsible for the instance
@@ -102,10 +68,10 @@ export interface EnterpriseEc2Args {
   costCenter?: string;
 
   /**
-   * Access type for the instance
-   * Default: "private-only"
+   * Instance type (optional - auto-selected based on workload if not specified)
+   * Examples: "t3.micro", "t3.small", "m5.large", "c5.xlarge"
    */
-  accessType?: AccessType;
+  instanceType?: string;
 
   /**
    * Root volume size in GB
@@ -114,183 +80,95 @@ export interface EnterpriseEc2Args {
   rootVolumeSize?: number;
 
   /**
-   * Additional EBS volumes
+   * Root volume type
+   * Default: "gp3" for most workloads, "io2" for high-performance
    */
-  additionalVolumes?: AdditionalVolumeArgs[];
+  rootVolumeType?: string;
 
   /**
-   * User data script for instance initialization
+   * Whether to enable detailed monitoring
+   * Default: true for production workloads
    */
-  userData?: string;
+  enableDetailedMonitoring?: boolean;
 
   /**
-   * IAM instance profile for permissions
+   * Whether to enable termination protection
+   * Default: true for production workloads
+   */
+  enableTerminationProtection?: boolean;
+
+  /**
+   * IAM instance profile ARN (optional)
    */
   iamInstanceProfile?: string;
 
   /**
-   * Additional tags for the instance
+   * User data script (optional)
+   */
+  userData?: string;
+
+  /**
+   * Additional tags to apply to all resources
    */
   tags?: Record<string, string>;
-
-  // Advanced options (optional - for power users)
-  /**
-   * Custom backup strategy (overrides workload defaults)
-   */
-  backupStrategy?: BackupStrategy;
-
-  /**
-   * Custom monitoring level (overrides workload defaults)
-   */
-  monitoringLevel?: MonitoringLevel;
-
-  /**
-   * Whether to enable termination protection
-   * Default: Based on workload and environment
-   */
-  enableTerminationProtection?: boolean;
 }
 
 /**
- * Additional EBS volume configuration
+ * Internal configuration type with all defaults applied
  */
-export interface AdditionalVolumeArgs {
-  /**
-   * Volume name
-   */
-  name: string;
-
-  /**
-   * Volume size in GB
-   */
-  size: number;
-
-  /**
-   * Volume type
-   * Default: "gp3"
-   * Valid values: "standard", "gp2", "gp3", "io1", "io2"
-   */
-  type?: string;
-
-  /**
-   * Whether to encrypt the volume
-   * Default: true
-   */
-  encrypted?: boolean;
-
-  /**
-   * KMS key ID for encryption
-   */
-  kmsKeyId?: string;
-
-  /**
-   * IOPS for io1/io2 volumes
-   */
-  iops?: number;
-
-  /**
-   * Throughput for gp3 volumes (MiB/s)
-   */
-  throughput?: number;
-
-  /**
-   * Mount point (e.g., "/data", "/logs")
-   */
-  mountPoint?: string;
+export interface Ec2Config
+  extends Omit<Ec2Args, "keyPairName" | "iamInstanceProfile" | "userData"> {
+  keyPairName?: string;
+  iamInstanceProfile?: string;
+  userData?: string;
+  environment: string;
+  team: string;
+  application: string;
+  costCenter: string;
+  instanceType: string;
+  rootVolumeSize: number;
+  rootVolumeType: string;
+  enableDetailedMonitoring: boolean;
+  enableTerminationProtection: boolean;
+  tags: Record<string, string>;
 }
 
 /**
- * Enterprise EC2 Instance Result
+ * Output values from the EC2 component
  */
-export interface EnterpriseEc2Result {
+export interface Ec2Result {
   /**
-   * Instance ID
+   * The ID of the created EC2 instance
    */
   instanceId: pulumi.Output<string>;
 
   /**
-   * Public IP address (if applicable)
-   */
-  publicIp: pulumi.Output<string>;
-
-  /**
-   * Private IP address
+   * The private IP address of the instance
    */
   privateIp: pulumi.Output<string>;
 
   /**
-   * Public DNS name (if applicable)
-   */
-  publicDns: pulumi.Output<string>;
-
-  /**
-   * Private DNS name
+   * The private DNS name of the instance
    */
   privateDns: pulumi.Output<string>;
 
   /**
-   * Availability zone
+   * The availability zone of the instance
    */
   availabilityZone: pulumi.Output<string>;
 
   /**
-   * Instance ARN
+   * The ARN of the instance
    */
   arn: pulumi.Output<string>;
 
   /**
-   * Instance state
+   * The current state of the instance
    */
   state: pulumi.Output<string>;
 
   /**
-   * Root volume ID
+   * The ID of the root volume
    */
   rootVolumeId: pulumi.Output<string>;
-
-  /**
-   * Additional volume IDs
-   */
-  additionalVolumeIds: pulumi.Output<string[]>;
-
-  /**
-   * SSH connection string (for Linux instances)
-   */
-  sshConnectionString?: pulumi.Output<string>;
-
-  /**
-   * RDP connection string (for Windows instances)
-   */
-  rdpConnectionString?: pulumi.Output<string>;
-
-  /**
-   * CloudWatch dashboard URL
-   */
-  cloudWatchDashboardUrl: pulumi.Output<string>;
-}
-
-/**
- * OS-specific configuration
- */
-export interface OsConfig {
-  readonly amiId: string;
-  readonly defaultRootVolumeSize: number;
-  readonly userDataTemplate?: string;
-  readonly requiresKeyPair: boolean;
-  readonly sshUser: string;
-  readonly rdpUser?: string;
-}
-
-/**
- * Workload configuration (combines instance type and settings)
- */
-export interface WorkloadConfig {
-  readonly instanceType: string;
-  readonly vcpus: number;
-  readonly memoryGiB: number;
-  readonly networkPerformance: string;
-  readonly monitoringLevel: MonitoringLevel;
-  readonly backupStrategy: BackupStrategy;
-  readonly terminationProtection: boolean;
-  readonly rootVolumeSize: number;
 }
