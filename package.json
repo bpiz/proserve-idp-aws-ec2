@@ -1,7 +1,7 @@
 {
   "name": "aws-ec2",
   "description": "Enterprise-ready AWS EC2 instance component with security best practices",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "dependencies": {
     "@pulumi/pulumi": "^3.0.0",
     "@pulumi/aws": "^6.0.0"

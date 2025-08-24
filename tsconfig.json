@@ -12,5 +12,5 @@
     "noImplicitReturns": true,
     "forceConsistentCasingInFileNames": true
   },
-  "files": ["ec2.ts", "types.ts"]
+  "files": ["index.ts", "ec2.ts", "types.ts"]
 }
